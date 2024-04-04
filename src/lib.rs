@@ -1,8 +1,10 @@
 
 #![allow(non_snake_case)]
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use std::fs::File;
+use std::collections::HashSet;
+use std::fs::{self, File};
 use std::path::Path;
 use std::io::{self, BufRead};
 
@@ -13,18 +15,18 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize)]
 struct CreationInfo {
-    created: String,
-    creators: Vec<String>, 
+    created: DateTime<Utc>,
+    creators: HashSet<String>, 
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 struct ExternalRef {
     referenceCategory: String,
     referenceType: String,
     referenceLocator: String, 
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 struct Package {
     SPDXID: String,
     name: String,
@@ -35,7 +37,7 @@ struct Package {
     externalRefs: Vec<ExternalRef>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
 struct Relationship {
     relationshipType: String,
     spdxElementId: String,
@@ -50,8 +52,8 @@ struct Sbom {
     dataLicense: String,
     documentDescribes: Vec<String>,
     documentNamespace: String,
-    packages: Vec<Package>,
-    relationships: Vec<Relationship>
+    packages: HashSet<Package>,
+    relationships: HashSet<Relationship>
 
 }
 
@@ -67,22 +69,18 @@ impl Config {
         Ok(Config { path1, path2 })
     }
 }
-pub fn read_to_type(config: Config) -> serde_json::Result<()> {
-    let mut data: String = "".to_string();
+pub fn read_to_type(config: Config) -> anyhow::Result<()> {
+   
+    let data = fs::read_to_string(config.path1)?;
 
-    if let Ok(lines) = read_lines(config.path1) {
-        for line in lines.flatten() {
-            data.push_str(&line);
-        }
-    }
-
-    let sbom_json: Sbom = serde_json::from_str(data.as_str())?;
+    let sbom_json: Sbom = serde_json::from_str(&data)?;
     println!("Sbom name: {}", sbom_json.name);
     println!("SPDXID: {}", sbom_json.SPDXID);
     println!("spdxVersion: {}", sbom_json.spdxVersion);
 
     for package in &sbom_json.packages {
         println!("package name: {}", package.name);
+        println!("version: {}", package.versionInfo);
     }
     
 
@@ -112,3 +110,20 @@ where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
+
+// TODO:
+// SPDXID: String, - dedupe
+
+// spdxVersion: String, - assert versions match vSPDX-2.3 & dedupe
+
+// struct CreationInfo {
+//     created: String, - new Date (now) Chrono
+//     creators: HashSet<String>,  - dedupe (hashset) & add toolname as creator
+// }
+
+// name: String,
+// dataLicense: String,
+// documentDescribes: Vec<String>,
+// documentNamespace: String,
+// packages: Vec<Package>, - dedupe, maybe keep order
+// relationships: Vec<Relationship> - dedupe 
