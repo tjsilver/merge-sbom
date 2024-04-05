@@ -1,12 +1,9 @@
-
 #![allow(non_snake_case)]
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-
 use std::collections::HashSet;
-use std::fs::{self, File};
-use std::path::Path;
-use std::io::{self, BufRead};
+use std::fs;
+use anyhow::Result;
 
 pub struct Config {
     pub path1: String,
@@ -34,7 +31,7 @@ struct Package {
     downloadLocation: String,
     filesAnalyzed: bool,
     supplier: String,
-    externalRefs: Vec<ExternalRef>
+    externalRefs: Option<Vec<ExternalRef>>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -58,7 +55,7 @@ struct Sbom {
 }
 
 impl Config {
-    pub fn build(args: &[String]) -> std::result::Result<Config, &'static str> {
+    pub fn build(args: &[String]) -> Result<Config, &'static str> {
         if args.len() < 3 {
             return Err("Not enough arguments");
         }
@@ -69,58 +66,63 @@ impl Config {
         Ok(Config { path1, path2 })
     }
 }
-pub fn read_to_type(config: Config) -> anyhow::Result<()> {
+
+fn json_to_sbom(filepath: String) -> Result<Sbom> {
    
-    let data = fs::read_to_string(config.path1)?;
+    let json = fs::read_to_string(&filepath)?;
 
-    let sbom_json: Sbom = serde_json::from_str(&data)?;
-    println!("Sbom name: {}", sbom_json.name);
-    println!("SPDXID: {}", sbom_json.SPDXID);
-    println!("spdxVersion: {}", sbom_json.spdxVersion);
+    let sbom: Sbom = serde_json::from_str(&json)?;
 
-    for package in &sbom_json.packages {
-        println!("package name: {}", package.name);
-        println!("version: {}", package.versionInfo);
-    }
+    eprintln!("Sbom name: {}", &sbom.name);
+    eprintln!("SPDXID: {}", &sbom.SPDXID);
+    eprintln!("spdxVersion: {}", &sbom.spdxVersion);
     
+    Ok(sbom)
+}
+
+fn sbom_to_string(sbom: Sbom) -> Result<String> {
+
+    let merged = serde_json::to_string_pretty(&sbom)?;
+
+    Ok(merged)
+}
+
+fn merge(_sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
+    
+    let merged = sbom2;
+
+    Ok(merged)    
+}
+
+pub fn merge_all(config: Config) -> Result<()>{
+
+    let path1 = config.path1;
+    let path2 = config.path2;
+
+    eprintln!("Merging {} and {}.", &path1, &path2);
+
+    let sbom1 = json_to_sbom(path1).unwrap();
+    let sbom2 = json_to_sbom(path2).unwrap();
+
+    let sbom_final = merge(sbom1, sbom2);
+
+    let merged = sbom_to_string(sbom_final?).unwrap();
+
+    println!("{}", merged);
 
     Ok(())
 }
 
-// pub fn merge(config: Config) -> std::result::Result<(), Box<dyn Error>> {
-
-
-//     if let Ok(lines) = read_lines(config.path1) {
-//         for line in lines.flatten() {
-//             println!("{}", line);
-//         }
-//     }
-
-//     if let Ok(lines) = read_lines(config.path2) {
-//         for line in lines.flatten() {
-//             println!("{}", line);
-//         }
-//     }
-
-//     Ok(())
-// }
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
-}
-
 // TODO:
+// Add test(s) to ensure that the serialization & deserialization result is identical to original json
+
+// Merging: 
 // SPDXID: String, - dedupe
-
 // spdxVersion: String, - assert versions match vSPDX-2.3 & dedupe
-
 // struct CreationInfo {
-//     created: String, - new Date (now) Chrono
-//     creators: HashSet<String>,  - dedupe (hashset) & add toolname as creator
-// }
-
+    //     created: String, - new Date (now) Chrono
+    //     creators: HashSet<String>,  - dedupe (hashset) & add toolname as creator
+    // }
 // name: String,
 // dataLicense: String,
 // documentDescribes: Vec<String>,
