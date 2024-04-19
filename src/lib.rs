@@ -145,6 +145,40 @@ pub fn merge_all(config: Config) -> Result<()>{
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
+    }
+    #[test]
+    fn merge_hashsets_works() {
+        let mut hash1 = HashSet::new();
+
+        hash1.insert("To Kill a Mockingbird".to_string());
+        hash1.insert("The Odyssey".to_string());
+        hash1.insert("The Great Gatsby".to_string());
+
+        let mut hash2 = HashSet::new();
+        hash2.insert("To Kill a Mockingbird".to_string());
+        hash2.insert("The Odyssey".to_string());
+        hash2.insert("A Dance With Dragons".to_string());
+
+        let mut expected = HashSet::new();
+        expected.insert("To Kill a Mockingbird".to_string());
+        expected.insert("The Odyssey".to_string());
+        expected.insert("The Great Gatsby".to_string());
+        expected.insert("A Dance With Dragons".to_string());
+
+
+        assert_eq!(expected, merge_hashsets(hash1, hash2));
+    }
+}
+
 // TODO:
 // Add test(s) to ensure that the serialization & deserialization result is identical to original json
 
