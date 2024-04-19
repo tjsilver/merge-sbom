@@ -2,6 +2,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::fs;
 use anyhow::Result;
 
@@ -16,14 +17,14 @@ struct CreationInfo {
     creators: HashSet<String>, 
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 struct ExternalRef {
     referenceCategory: String,
     referenceType: String,
     referenceLocator: String, 
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 struct Package {
     SPDXID: String,
     name: String,
@@ -87,9 +88,40 @@ fn sbom_to_string(sbom: Sbom) -> Result<String> {
     Ok(merged)
 }
 
-fn merge(_sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
+fn merge_hashsets<T>(hash1: HashSet<T>, hash2: HashSet<T>) -> Result<HashSet<T>> 
+where
+    T: Clone + Eq + Hash, {
+        eprintln!("hash1 has length: {}", hash1.len());
+        eprintln!("hash2 has length: {}", hash2.len());
     
-    let merged = sbom2;
+        let mut merged_hashset = hash1;
+        merged_hashset.extend(hash2);
+
+        eprintln!("merged_hashset has length: {}", merged_hashset.len());
+
+        Ok(merged_hashset.clone())
+    }
+
+fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
+
+    let creators_joined = merge_hashsets(sbom1.creationInfo.creators, sbom2.creationInfo.creators);
+    let packages_joined = merge_hashsets(sbom1.packages, sbom2.packages);
+    
+    let merged: Sbom = Sbom { 
+        SPDXID: sbom1.SPDXID, 
+        spdxVersion: sbom1.spdxVersion, 
+        creationInfo: CreationInfo {
+            created: Utc::now(),
+            creators: creators_joined?, 
+        }, 
+        name: sbom1.name, 
+        dataLicense: String::from("Test data license"), 
+        documentDescribes: [String::from("Test document describes")].to_vec(), 
+        documentNamespace: String::from("Test document namespace"), 
+        packages: packages_joined?, 
+        relationships: sbom1.relationships 
+    };
+
 
     Ok(merged)    
 }
