@@ -175,7 +175,7 @@ mod tests {
         expected.insert("A Dance With Dragons".to_string());
 
 
-        assert_eq!(expected, merge_hashsets(hash1, hash2));
+        assert_eq!(expected, merge_hashsets(hash1, hash2).unwrap());
     }
 }
 
