@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::fs;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 pub struct Config {
     pub path1: String,
@@ -103,6 +103,11 @@ where
     }
 
 fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
+
+    const VERSION: &str = "SPDX-2.3";
+    if sbom1.spdxVersion != VERSION || sbom2.spdxVersion != VERSION {
+        return Err(anyhow!("Version mismatch: SPDX version in both files must be {}", VERSION));
+    }
 
     let creators_joined = merge_hashsets(sbom1.creationInfo.creators, sbom2.creationInfo.creators);
     let packages_joined = merge_hashsets(sbom1.packages, sbom2.packages);
