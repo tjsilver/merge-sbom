@@ -4,17 +4,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::fs;
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 
 pub struct Config {
     pub path1: String,
     pub path2: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct CreationInfo {
+    licenseListVersion: Option<String>,
     created: DateTime<Utc>,
     creators: HashSet<String>, 
+    comment: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
@@ -42,13 +44,13 @@ struct Relationship {
     relatedSpdxElement: String,
 }
 #[derive(Serialize, Deserialize)]
-struct Sbom {
+pub struct Sbom {
     SPDXID: String,
     spdxVersion: String,
     creationInfo: CreationInfo,
     name: String,
     dataLicense: String,
-    documentDescribes: Vec<String>,
+    documentDescribes: Option<HashSet<String>>,
     documentNamespace: String,
     packages: HashSet<Package>,
     relationships: HashSet<Relationship>
@@ -88,42 +90,83 @@ fn sbom_to_string(sbom: Sbom) -> Result<String> {
     Ok(merged)
 }
 
-fn merge_hashsets<T>(hash1: HashSet<T>, hash2: HashSet<T>) -> Result<HashSet<T>> 
+fn combine_options<T, A>(a: Option<T<A>>, b: Option<T<A>>, func: impl Fn(T<A>) -> T<A>) -> T<A> {
+    //TODO - make a generic function that checks if there are Somes in each and runs the function passed in.
+}
+
+fn merge_hashsets<T>(hash1: HashSet<T>, hash2: HashSet<T>) -> HashSet<T> 
 where
     T: Clone + Eq + Hash, {
-        eprintln!("hash1 has length: {}", hash1.len());
-        eprintln!("hash2 has length: {}", hash2.len());
+        eprintln!("hashset1 has length: {}", hash1.len());
+        eprintln!("hashset2 has length: {}", hash2.len());
     
         let mut merged_hashset = hash1;
         merged_hashset.extend(hash2);
 
         eprintln!("merged_hashset has length: {}", merged_hashset.len());
 
-        Ok(merged_hashset.clone())
+        merged_hashset
     }
+
+fn merge_option_hashsets<T>(d1: Option<HashSet<T>>, d2: Option<HashSet<T>>) -> Option<HashSet<T>> 
+where
+    T: Clone + Eq + Hash, {
+    if d1.is_some() && d2.is_some() {
+        return Some(merge_hashsets(d1.unwrap(), d2.unwrap()));
+    }
+    else if d1.is_some() {
+        return d1;
+    }
+    else if d2.is_some() {
+        return d2;
+    }
+    return None;
+}
+
+fn combine_strings(s1:String, s2:String) -> String {
+    if s1 == s2 {
+        return s1;
+    }
+    format!("{} AND {}", s1, s2)
+}
+
+fn combine_option_strings(c1: Option<String>, c2: Option<String>) -> Option<String> {
+    if c1.is_some() && c2.is_some() {
+        return Some(combine_strings(c1.unwrap(), c2.unwrap()));
+    }
+    else if c1.is_some() {
+        return c1;
+    }
+    else if c2.is_some() {
+        return c2;
+    }
+    return None;
+}
 
 fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
 
     const VERSION: &str = "SPDX-2.3";
     if sbom1.spdxVersion != VERSION || sbom2.spdxVersion != VERSION {
-        return Err(anyhow!("Version mismatch: SPDX version in both files must be {}", VERSION));
+        bail!("Version mismatch: SPDX version in both files must be {}", VERSION);
     }
 
-    let creators_joined = merge_hashsets(sbom1.creationInfo.creators, sbom2.creationInfo.creators);
-    let packages_joined = merge_hashsets(sbom1.packages, sbom2.packages);
+    let mut all_creators = merge_hashsets(sbom1.creationInfo.creators, sbom2.creationInfo.creators);
+    all_creators.insert(String::from("Tool: Guardian.com-Merge-SBOM"));
     
     let merged: Sbom = Sbom { 
         SPDXID: sbom1.SPDXID, 
         spdxVersion: sbom1.spdxVersion, 
         creationInfo: CreationInfo {
+            licenseListVersion: combine_option_strings(sbom1.creationInfo.licenseListVersion, sbom2.creationInfo.licenseListVersion),
             created: Utc::now(),
-            creators: creators_joined?, 
+            creators: all_creators, 
+            comment: combine_option_strings(sbom1.creationInfo.comment, sbom2.creationInfo.comment)
         }, 
-        name: sbom1.name, 
-        dataLicense: String::from("Test data license"), 
-        documentDescribes: [String::from("Test document describes")].to_vec(), 
+        name: format!("{} AND {}", sbom1.name, sbom2.name), 
+        dataLicense: combine_strings(sbom1.dataLicense, sbom2.dataLicense), 
+        documentDescribes: merge_option_hashsets(sbom1.documentDescribes, sbom2.documentDescribes),
         documentNamespace: String::from("Test document namespace"), 
-        packages: packages_joined?, 
+        packages: merge_hashsets(sbom1.packages, sbom2.packages),
         relationships: sbom1.relationships 
     };
 
@@ -180,11 +223,17 @@ mod tests {
         expected.insert("A Dance With Dragons".to_string());
 
 
-        assert_eq!(expected, merge_hashsets(hash1, hash2).unwrap());
+        assert_eq!(expected, merge_hashsets(hash1, hash2));
     }
+
+    // #[test]
+    // fn test_test() {
+    //     let good = serde_json::from_str::<Sbom>(EXAMPLE);
+    // }
 }
 
 // TODO:
+// tests - multi-line strings or .json file
 // Add test(s) to ensure that the serialization & deserialization result is identical to original json
 
 // Merging: 
