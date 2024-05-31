@@ -1,7 +1,9 @@
-#![allow(non_snake_case)]
+#![allow(dead_code, unused_variables, unused_imports)]
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashSet};
+use serde_json::Value;
+use std::collections::{BTreeSet, HashSet, HashMap};
 use std::hash::Hash;
 use std::fs;
 use anyhow::{bail, Result};
@@ -12,20 +14,42 @@ pub struct Config {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]	
+
+
+/*  NTIA Minimum Elements and SPDX 2.3 mandatory fields
+(see https://spdx.github.io/spdx-ntia-sbom-howto/#_3_5_summary_of_required_fields)
+Package.supplier x
+Package.name x
+Package.versionInfo x
+DocumentNamespace x
+SPDXID x
+Relationship (CONTAINS)
+Creator
+Created
+SPDXVersion
+DataLicense
+SPDXID (for Document)
+DocumentName	
+PackageDownloadLocation	
+FilesAnalyzed
+Relationship (DESCRIBES, for primary Package)
+*/
+
+
 pub struct Sbom {
     #[serde(rename = "SPDXID")]
     pub spdxid: String,
     pub spdx_version: String,
-    pub creation_info: CreationInfo,
-    pub name: String,
     pub data_license: String,
+    pub creation_info: CreationInfo,
+    pub document_namespace: String,
+    pub name: String,
     pub comment: Option<String>,
     pub external_document_refs: Option<HashSet<ExternalDocumentRef>>,
     pub has_extracted_licensing_infos: Option<HashSet<HasExtractedLicensingInfo>>,
     pub annotations: Option<HashSet<Annotation>>,
     pub document_describes: Option<HashSet<String>>,
-    pub document_namespace: String,
     pub packages: HashSet<Package>,
     pub files: Option<HashSet<File>>,
     pub snippets: Option<HashSet<Snippet>>,
@@ -49,7 +73,7 @@ pub struct ExternalDocumentRef {
     pub spdx_document: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Checksum {
     pub algorithm: String,
@@ -67,7 +91,7 @@ pub struct HasExtractedLicensingInfo {
     pub see_alsos: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Annotation {
     pub annotation_date: DateTime<Utc>,
@@ -76,30 +100,32 @@ pub struct Annotation {
     pub comment: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Package {
     #[serde(rename = "SPDXID")]
     pub spdxid: String,
+    pub supplier: String,
+    pub name: String,
+    pub version_info: String,
     #[serde(default)]
-    pub annotations: Vec<Annotation>,
+    pub annotations: BTreeSet<Annotation>,
     #[serde(default)]
     pub attribution_texts: Vec<String>,
     pub built_date: Option<String>,
     #[serde(default)]
-    pub checksums: Vec<Checksum>,
+    pub checksums: BTreeSet<Checksum>,
     pub copyright_text: Option<String>,
     pub description: Option<String>,
     pub download_location: String,
     #[serde(default)]
-    pub external_refs: Vec<ExternalRef>,
+    pub external_refs: BTreeSet<ExternalRef>,
     pub files_analyzed: bool,
     pub homepage: Option<String>,
     pub license_comments: Option<String>,
     pub license_concluded: Option<String>,
     pub license_declared: Option<String>,
     pub license_info_from_files: Option<BTreeSet<String>>,
-    pub name: String,
     pub originator: Option<String>,
     pub package_file_name: Option<String>,
     pub package_verification_code: Option<PackageVerificationCode>,
@@ -109,12 +135,10 @@ pub struct Package {
     pub release_date: Option<String>,
     pub source_info: Option<String>,
     pub summary: Option<String>,
-    pub supplier: Option<String>,
     pub valid_until_date: Option<String>,
-    pub version_info: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalRef {
     pub reference_category: String,
@@ -123,7 +147,7 @@ pub struct ExternalRef {
     pub comment: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageVerificationCode {
     pub package_verification_code_excluded_files: Vec<String>,
@@ -211,20 +235,22 @@ impl Config {
     }
 }
 
-fn json_to_sbom(filepath: String) -> Result<Sbom> {
+fn json_to_sbom(filepath: String) -> Result<HashMap<String,Value>> {
    
-    let json = fs::read_to_string(filepath)?;
+    let json = fs::read_to_string(filepath).unwrap();
 
-    let sbom: Sbom = serde_json::from_str(&json)?;
+    // let sbom: Sbom = serde_json::from_str(&json)?;
+    let sbom: HashMap<String, Value> = serde_json::from_str(&json).unwrap();
 
-    eprintln!("Sbom name: {}", &sbom.name);
-    eprintln!("SPDXID: {}", &sbom.spdxid);
-    eprintln!("spdxVersion: {}", &sbom.spdx_version);
+
+    // eprintln!("Sbom name: {}", &sbom.name);
+    // eprintln!("SPDXID: {}", &sbom.spdxid);
+    // eprintln!("spdxVersion: {}", &sbom.spdx_version);
     
     Ok(sbom)
 }
 
-fn sbom_to_string(sbom: Sbom) -> Result<String> {
+fn sbom_to_string(sbom: HashMap<String, Value>) -> Result<String> {
 
     let merged = serde_json::to_string_pretty(&sbom)?;
 
@@ -283,39 +309,54 @@ fn combine_option_strings(c1: Option<String>, c2: Option<String>) -> Option<Stri
     }
     None
 }
+fn merge(sbom1: HashMap<String, Value>
+    , sbom2:HashMap<String, Value>
+) -> Result<HashMap<String, Value>>
+    {
 
-fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
-
+// fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
     const VERSION: &str = "SPDX-2.3";
-    if sbom1.spdx_version != VERSION || sbom2.spdx_version != VERSION {
+    if sbom1["spdxVersion"] != VERSION || sbom2["spdxVersion"] != VERSION {
         bail!("Version mismatch: SPDX version in both files must be {}", VERSION);
+    } else {
+        eprintln!("SPDX version is {}", VERSION);
     }
 
-    let mut all_creators = merge_hashsets(sbom1.creation_info.creators, sbom2.creation_info.creators);
-    all_creators.insert(String::from("Tool: Guardian.com-Merge-SBOM"));
+    // let mut all_creators = merge_hashsets(sbom1.creation_info.creators, sbom2.creation_info.creators);
+    // all_creators.insert(String::from("Tool: Guardian.com-Merge-SBOM"));
     
-    let merged: Sbom = Sbom { 
-        spdxid: sbom1.spdxid, 
-        spdx_version: sbom1.spdx_version, 
-        creation_info: CreationInfo {
-            license_list_version: combine_option_strings(sbom1.creation_info.license_list_version, sbom2.creation_info.license_list_version),
-            created: Utc::now(),
-            creators: all_creators, 
-            comment: combine_option_strings(sbom1.creation_info.comment, sbom2.creation_info.comment)
-        }, 
-        name: format!("{} AND {}", sbom1.name, sbom2.name), 
-        data_license: combine_strings(sbom1.data_license, sbom2.data_license), 
-        document_describes: merge_option_hashsets(sbom1.document_describes, sbom2.document_describes),
-        document_namespace: String::from("Test document namespace"), 
-        packages: merge_hashsets(sbom1.packages, sbom2.packages),
-        relationships: sbom1.relationships,
-        comment: sbom1.comment,
-        external_document_refs: sbom1.external_document_refs,
-        has_extracted_licensing_infos: sbom1.has_extracted_licensing_infos,
-        annotations: sbom1.annotations,
-        files: sbom1.files,
-        snippets: sbom1.snippets, 
-    };
+
+    for item in sbom1.iter() {
+        dbg!(&item);
+
+        // Print: Get the keys from the object
+        // dbg!(item.keys());
+    }
+
+    let merged = sbom1;
+    
+    // let merged: Sbom = Sbom { 
+    //     spdxid: sbom1.spdxid, 
+    //     spdx_version: sbom1.spdx_version, 
+    //     creation_info: CreationInfo {
+    //         license_list_version: combine_option_strings(sbom1.creation_info.license_list_version, sbom2.creation_info.license_list_version),
+    //         created: Utc::now(),
+    //         creators: all_creators, 
+    //         comment: combine_option_strings(sbom1.creation_info.comment, sbom2.creation_info.comment)
+    //     }, 
+    //     name: format!("{} AND {}", sbom1.name, sbom2.name), 
+    //     data_license: combine_strings(sbom1.data_license, sbom2.data_license), 
+    //     document_describes: merge_option_hashsets(sbom1.document_describes, sbom2.document_describes),
+    //     document_namespace: String::from("Test document namespace"), 
+    //     packages: merge_hashsets(sbom1.packages, sbom2.packages),
+    //     relationships: sbom1.relationships,
+    //     comment: sbom1.comment,
+    //     external_document_refs: sbom1.external_document_refs,
+    //     has_extracted_licensing_infos: sbom1.has_extracted_licensing_infos,
+    //     annotations: sbom1.annotations,
+    //     files: sbom1.files,
+    //     snippets: sbom1.snippets, 
+    // };
 
 
     Ok(merged)    
