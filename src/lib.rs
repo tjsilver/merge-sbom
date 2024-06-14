@@ -1,9 +1,6 @@
-#![allow(dead_code, unused_variables, unused_imports)]
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::{BTreeSet, HashSet, HashMap};
+use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 use std::fs;
 use anyhow::{bail, Result};
@@ -16,27 +13,6 @@ pub struct Config {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]	
 
-
-/*  NTIA Minimum Elements and SPDX 2.3 mandatory fields
-(see https://spdx.github.io/spdx-ntia-sbom-howto/#_3_5_summary_of_required_fields)
-Package.supplier x
-Package.name x
-Package.versionInfo x
-DocumentNamespace x
-SPDXID x
-Relationship (CONTAINS)
-Creator
-Created
-SPDXVersion
-DataLicense
-SPDXID (for Document)
-DocumentName	
-PackageDownloadLocation	
-FilesAnalyzed
-Relationship (DESCRIBES, for primary Package)
-*/
-
-
 pub struct Sbom {
     #[serde(rename = "SPDXID")]
     pub spdxid: String,
@@ -45,34 +21,37 @@ pub struct Sbom {
     pub creation_info: CreationInfo,
     pub document_namespace: String,
     pub name: String,
+    pub packages: HashSet<Package>,
+    pub relationships: HashSet<Relationship>,
     pub comment: Option<String>,
     pub external_document_refs: Option<HashSet<ExternalDocumentRef>>,
     pub has_extracted_licensing_infos: Option<HashSet<HasExtractedLicensingInfo>>,
     pub annotations: Option<HashSet<Annotation>>,
     pub document_describes: Option<HashSet<String>>,
-    pub packages: HashSet<Package>,
     pub files: Option<HashSet<File>>,
     pub snippets: Option<HashSet<Snippet>>,
-    pub relationships: HashSet<Relationship>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreationInfo {
-    pub comment: Option<String>,
     #[serde(default)]
     pub created: DateTime<Utc>,
+    #[serde(default)]
     pub creators: HashSet<String>,
+    pub comment: Option<String>,    
     pub license_list_version: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct ExternalDocumentRef {
-    pub external_document_id: Option<String>,
+    #[serde(default)]
+    pub external_document_id: String,
     #[serde(default)]
     pub checksum: Checksum,
-    pub spdx_document: Option<String>,
+    #[serde(default)]
+    pub spdx_document: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
@@ -100,7 +79,9 @@ pub struct HasExtractedLicensingInfo {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct Annotation {
+    #[serde(default)]
     pub annotation_date: DateTime<Utc>,
+    #[serde(default)]
     pub annotation_type: String,
     pub annotator: Option<String>,
     pub comment: Option<String>,
@@ -124,14 +105,16 @@ pub struct Package {
     pub built_date: Option<String>,
     #[serde(default)]
     pub checksums: BTreeSet<Checksum>,
-    pub copyright_text: Option<String>,
-    pub description: Option<String>,
     #[serde(default)]
     pub download_location: String,
     #[serde(default)]
     pub external_refs: BTreeSet<ExternalRef>,    
     #[serde(default)]
     pub files_analyzed: bool,
+    #[serde(default)]
+    pub has_files: BTreeSet<String>,
+    pub copyright_text: Option<String>,
+    pub description: Option<String>,
     pub homepage: Option<String>,
     pub license_comments: Option<String>,
     pub license_concluded: Option<String>,
@@ -141,8 +124,6 @@ pub struct Package {
     pub package_file_name: Option<String>,
     pub package_verification_code: Option<PackageVerificationCode>,
     pub primary_package_purpose: Option<String>,
-    #[serde(default)]
-    pub has_files: BTreeSet<String>,
     pub release_date: Option<String>,
     pub source_info: Option<String>,
     pub summary: Option<String>,
@@ -164,9 +145,9 @@ pub struct ExternalRef {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageVerificationCode {
-    pub package_verification_code_excluded_files: Option<Vec<String>>,
     #[serde(default)]
     pub package_verification_code_value: String,
+    pub package_verification_code_excluded_files: Option<Vec<String>>,    
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
@@ -174,20 +155,20 @@ pub struct PackageVerificationCode {
 pub struct File {
     #[serde(rename = "SPDXID")]
     pub spdxid: String,
+    #[serde(default)]
     pub checksums: Vec<Checksum>,
-    pub copyright_text: Option<String>,
     #[serde(default)]
     pub file_contributors: BTreeSet<String>,
-    pub file_name: String,
-    pub file_types: BTreeSet<String>,
-    pub license_concluded: Option<String>,
     #[serde(default)]
-    pub license_info_in_files: BTreeSet<String>,
+    pub file_name: String,
+    pub copyright_text: Option<String>,
+    pub file_types: Option<BTreeSet<String>>,
+    pub license_concluded: Option<String>,
+    pub license_info_in_files: Option<BTreeSet<String>>,
     pub comment: Option<String>,
     pub notice_text: Option<String>,
     pub license_comments: Option<String>,
-    #[serde(default)]
-    pub annotations: Vec<Annotation>,
+    pub annotations: Option<Vec<Annotation>>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
@@ -197,43 +178,57 @@ pub struct Snippet {
     pub spdxid: String,   
     #[serde(default)]
     pub comment: String,
+    #[serde(default)]
     pub copyright_text: String,
+    #[serde(default)]
     pub license_comments: String,
+    #[serde(default)]
     pub license_concluded: String,
+    #[serde(default)]
     pub license_info_in_snippets: BTreeSet<String>,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub ranges: Vec<Range>,
+    #[serde(default)]
     pub snippet_from_file: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {
+    #[serde(default)]
     pub end_pointer: EndPointer,
+    #[serde(default)]
     pub start_pointer: StartPointer,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct EndPointer {
-    pub offset: Option<i64>,
+    #[serde(default)]
     pub reference: String,
+    pub offset: Option<i64>,
     pub line_number: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct StartPointer {
-    pub offset: Option<i64>,
+    #[serde(default)]
     pub reference: String,
+    pub offset: Option<i64>,
     pub line_number: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub struct Relationship {
+    #[serde(default)]
     pub spdx_element_id: String,
+    #[serde(default)]
     pub relationship_type: String,
+    #[serde(default)]
     pub related_spdx_element: String,
 }
 
@@ -277,13 +272,8 @@ fn sbom_to_string(sbom: Sbom) -> Result<String> {
 fn merge_hashsets<T>(hash1: HashSet<T>, hash2: HashSet<T>) -> HashSet<T> 
 where
     T: Clone + Eq + Hash, {
-        eprintln!("hashset1 has length: {}", hash1.len());
-        eprintln!("hashset2 has length: {}", hash2.len());
-    
         let mut merged_hashset = hash1;
         merged_hashset.extend(hash2);
-
-        eprintln!("merged_hashset has length: {}", merged_hashset.len());
 
         merged_hashset
     }
@@ -436,3 +426,23 @@ mod tests {
 // documentNamespace: String,
 // packages: HashSet<Package>, - dedupe, maybe keep order
 // relationships: HashSet<Relationship> - dedupe 
+
+
+/*  NTIA Minimum Elements and SPDX 2.3 mandatory fields
+(see https://spdx.github.io/spdx-ntia-sbom-howto/#_3_5_summary_of_required_fields)
+Package.supplier x
+Package.name x
+Package.versionInfo x
+DocumentNamespace x
+SPDXID x
+Relationship (CONTAINS)
+Creator
+Created
+SPDXVersion
+DataLicense
+SPDXID (for Document)
+DocumentName	
+PackageDownloadLocation	
+FilesAnalyzed
+Relationship (DESCRIBES, for primary Package)
+*/
