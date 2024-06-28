@@ -390,7 +390,6 @@ mod tests {
 
         let mut hash2 = HashSet::new();
         hash2.insert("To Kill a Mockingbird".to_string());
-        hash2.insert("The Odyssey".to_string());
         hash2.insert("A Dance With Dragons".to_string());
 
         let mut expected = HashSet::new();
@@ -403,10 +402,86 @@ mod tests {
         assert_eq!(expected, merge_hashsets(hash1, hash2));
     }
 
-    // #[test]
-    // fn test_test() {
-    //     let good = serde_json::from_str::<Sbom>(EXAMPLE);
-    // }
+    #[test]
+    fn  merge_option_hashsets_works() {
+        let mut hash1 = HashSet::new();
+
+        hash1.insert("To Kill a Mockingbird".to_string());
+        hash1.insert("The Odyssey".to_string());
+        hash1.insert("The Great Gatsby".to_string());
+
+        let hash1_option = Some(hash1.clone());
+
+        let mut hash2 = HashSet::new();
+        hash2.insert("To Kill a Mockingbird".to_string());
+        hash2.insert("A Dance With Dragons".to_string());
+
+        let hash2_option = Some(hash2.clone());
+
+        let mut expected = HashSet::new();
+        expected.insert("To Kill a Mockingbird".to_string());
+        expected.insert("The Odyssey".to_string());
+        expected.insert("The Great Gatsby".to_string());
+        expected.insert("A Dance With Dragons".to_string());
+
+        let expected_option = Some(expected.clone());
+
+        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+
+    }
+
+    #[test]
+    fn  merge_option_hashsets_works_with_none() {
+        let mut hash1 = HashSet::new();
+
+        hash1.insert("To Kill a Mockingbird".to_string());
+        hash1.insert("The Odyssey".to_string());
+        hash1.insert("The Great Gatsby".to_string());
+
+        let hash1_option = Some(hash1.clone());
+
+        let hash2_option = None;
+
+        let mut expected = HashSet::new();
+        expected.insert("To Kill a Mockingbird".to_string());
+        expected.insert("The Odyssey".to_string());
+        expected.insert("The Great Gatsby".to_string());
+
+        let expected_option = Some(expected.clone());
+
+        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+
+    }
+
+    #[test]
+
+    fn  merge_option_hashsets_works_with_two_nones() {
+
+        let hash1_option: Option<HashSet<String>> = None;
+
+        let hash2_option: Option<HashSet<String>> = None;
+
+        let expected_option: Option<HashSet<String>> = None;
+
+        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+
+    }
+
+    #[test]
+    fn combine_option_strings_works() {
+        let string1_option = Some(String::from("First string"));
+        let string2_option = Some(String::from("Second string"));
+        let expected = Some(String::from("First string AND Second string"));
+        assert_eq!(expected, combine_option_strings(string1_option, string2_option));
+    }
+
+    #[test]
+    fn combine_option_strings_works_empty_string() {
+        let string1_option: Option<String> = None;
+        let string2_option = Some(String::from("Second string"));
+        let expected = Some(String::from("Second string"));
+        assert_eq!(expected, combine_option_strings(string1_option, string2_option));
+    }
 }
 
 // TODO:
