@@ -413,20 +413,6 @@ mod tests {
 // tests - multi-line strings or .json file
 // Add test(s) to ensure that the serialization & deserialization result is identical to original json
 
-// Merging: 
-// SPDXID: String, - dedupe
-// spdxVersion: String, - assert versions match vSPDX-2.3 & dedupe
-// struct CreationInfo {
-    //     created: String, - new Date (now) Chrono
-    //     creators: BTreeSet<String>,  - dedupe (hashset) & add toolname as creator
-    // }
-// name: String,
-// dataLicense: String,
-// documentDescribes: BTreeSet<String>,
-// documentNamespace: String,
-// packages: HashSet<Package>, - dedupe, maybe keep order
-// relationships: HashSet<Relationship> - dedupe 
-
 
 /*  NTIA Minimum Elements and SPDX 2.3 mandatory fields
 (see https://spdx.github.io/spdx-ntia-sbom-howto/#_3_5_summary_of_required_fields)
