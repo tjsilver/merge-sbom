@@ -246,7 +246,7 @@ impl Config {
     }
 }
 
-fn json_to_sbom(filepath: String) -> Result<Sbom> {
+pub fn json_to_sbom(filepath: String) -> Result<Sbom> {
    
     let json = fs::read_to_string(filepath).unwrap();
 
@@ -258,7 +258,7 @@ fn json_to_sbom(filepath: String) -> Result<Sbom> {
     Ok(sbom)
 }
 
-fn sbom_to_string(sbom: Sbom) -> Result<String> {
+pub fn sbom_to_string(sbom: Sbom) -> Result<String> {
 
     let merged = serde_json::to_string_pretty(&sbom)?;
 
