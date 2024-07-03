@@ -1,9 +1,12 @@
+mod combinable;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 use std::fs;
 use anyhow::{bail, Result};
+use combinable::Combinable;
 
 pub struct Config {
     pub path1: String,
@@ -265,54 +268,6 @@ pub fn sbom_to_string(sbom: Sbom) -> Result<String> {
     Ok(merged)
 }
 
-// fn combine_options<T, A>(a: Option<T<A>>, b: Option<T<A>>, func: impl Fn(T<A>) -> T<A>) -> T<A> {
-//     //TODO - make a generic function that checks if there are Somes in each and runs the function passed in.
-// }
-
-fn merge_hashsets<T>(hash1: HashSet<T>, hash2: HashSet<T>) -> HashSet<T> 
-where
-    T: Clone + Eq + Hash, {
-        let mut merged_hashset = hash1;
-        merged_hashset.extend(hash2);
-
-        merged_hashset
-    }
-
-fn merge_option_hashsets<T>(d1: Option<HashSet<T>>, d2: Option<HashSet<T>>) -> Option<HashSet<T>> 
-where
-    T: Clone + Eq + Hash, {
-    if d1.is_some() && d2.is_some() {
-        return Some(merge_hashsets(d1.unwrap(), d2.unwrap()));
-    }
-    else if d1.is_some() {
-        return d1;
-    }
-    else if d2.is_some() {
-        return d2;
-    }
-    None
-}
-
-fn combine_strings(s1:String, s2:String) -> String {
-    if s1 == s2 {
-        return s1;
-    }
-    format!("{} AND {}", s1, s2)
-}
-
-fn combine_option_strings(c1: Option<String>, c2: Option<String>) -> Option<String> {
-    if c1.is_some() && c2.is_some() {
-        return Some(combine_strings(c1.unwrap(), c2.unwrap()));
-    }
-    else if c1.is_some() {
-        return c1;
-    }
-    else if c2.is_some() {
-        return c2;
-    }
-    None
-}
-
 fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
     const VERSION: &str = "SPDX-2.3";
     if sbom1.spdx_version != VERSION || sbom2.spdx_version != VERSION {
@@ -321,7 +276,7 @@ fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
         eprintln!("SPDX version is {}", VERSION);
     }
 
-    let mut all_creators = merge_hashsets(sbom1.creation_info.creators, sbom2.creation_info.creators);
+    let mut all_creators = sbom1.creation_info.creators.combine(sbom2.creation_info.creators);
     all_creators.insert(String::from("Tool: Guardian.com-Merge-SBOM"));
 
     
@@ -329,25 +284,24 @@ fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
         spdxid: sbom1.spdxid, 
         spdx_version: sbom1.spdx_version, 
         creation_info: CreationInfo {
-            license_list_version: combine_option_strings(sbom1.creation_info.license_list_version, sbom2.creation_info.license_list_version),
+            license_list_version: sbom1.creation_info.license_list_version.combine(sbom2.creation_info.license_list_version),
             created: Utc::now(),
             creators: all_creators, 
-            comment: combine_option_strings(sbom1.creation_info.comment, sbom2.creation_info.comment)
+            comment: sbom1.creation_info.comment.combine(sbom2.creation_info.comment)
         }, 
         name: format!("{} AND {}", sbom1.name, sbom2.name), 
-        data_license: combine_strings(sbom1.data_license, sbom2.data_license), 
-        document_describes: merge_option_hashsets(sbom1.document_describes, sbom2.document_describes),
-        document_namespace: combine_strings(sbom1.document_namespace, sbom2.document_namespace), 
-        packages: merge_hashsets(sbom1.packages, sbom2.packages),
-        relationships: merge_hashsets(sbom1.relationships, sbom2.relationships),
-        comment: combine_option_strings(sbom1.comment, sbom2.comment),
-        external_document_refs: merge_option_hashsets(sbom1.external_document_refs, sbom2.external_document_refs),
-        has_extracted_licensing_infos: merge_option_hashsets(sbom1.has_extracted_licensing_infos, sbom2.has_extracted_licensing_infos),
-        annotations: merge_option_hashsets(sbom1.annotations, sbom2.annotations),
-        files: merge_option_hashsets(sbom1.files, sbom2.files),
-        snippets: merge_option_hashsets(sbom1.snippets, sbom2.snippets), 
+        data_license: sbom1.data_license.combine(sbom2.data_license), 
+        comment: sbom1.comment.combine(sbom2.comment),
+        external_document_refs: sbom1.external_document_refs.combine(sbom2.external_document_refs),
+        has_extracted_licensing_infos: sbom1.has_extracted_licensing_infos.combine(sbom2.has_extracted_licensing_infos),
+        annotations: sbom1.annotations.combine(sbom2.annotations),
+        document_describes: sbom1.document_describes.combine(sbom2.document_describes),
+        document_namespace: sbom1.document_namespace.combine(sbom2.document_namespace), 
+        packages: sbom1.packages.combine(sbom2.packages),
+        files: sbom1.files.combine(sbom2.files),
+        relationships: sbom1.relationships.combine(sbom2.relationships),
+        snippets: sbom1.snippets.combine(sbom2.snippets), 
     };
-
     Ok(merged)    
 }
 
@@ -483,27 +437,4 @@ mod tests {
         assert_eq!(expected, combine_option_strings(string1_option, string2_option));
     }
 }
-
-// TODO:
-// tests - multi-line strings or .json file
-// Add test(s) to ensure that the serialization & deserialization result is identical to original json
-
-
-/*  NTIA Minimum Elements and SPDX 2.3 mandatory fields
-(see https://spdx.github.io/spdx-ntia-sbom-howto/#_3_5_summary_of_required_fields)
-Package.supplier x
-Package.name x
-Package.versionInfo x
-DocumentNamespace x
-SPDXID x
-Relationship (CONTAINS)
-Creator
-Created
-SPDXVersion
-DataLicense
-SPDXID (for Document)
-DocumentName	
-PackageDownloadLocation	
-FilesAnalyzed
-Relationship (DESCRIBES, for primary Package)
-*/
+//TODO: borrow values instead of consuming them
