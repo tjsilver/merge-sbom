@@ -356,7 +356,7 @@ mod tests {
         expected.insert("A Dance With Dragons".to_string());
 
 
-        assert_eq!(expected, merge_hashsets(hash1, hash2));
+        assert_eq!(expected, hash1.combine(hash2));
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod tests {
 
         let expected_option = Some(expected.clone());
 
-        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+        assert_eq!(expected_option, hash1_option.combine(hash2_option));
 
     }
 
@@ -406,7 +406,7 @@ mod tests {
 
         let expected_option = Some(expected.clone());
 
-        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+        assert_eq!(expected_option, hash1_option.combine(hash2_option));
 
     }
 
@@ -420,7 +420,7 @@ mod tests {
 
         let expected_option: Option<HashSet<String>> = None;
 
-        assert_eq!(expected_option, merge_option_hashsets(hash1_option, hash2_option));
+        assert_eq!(expected_option, hash1_option.combine(hash2_option));
 
     }
 
@@ -429,7 +429,7 @@ mod tests {
         let string1_option = Some(String::from("First string"));
         let string2_option = Some(String::from("Second string"));
         let expected = Some(String::from("First string AND Second string"));
-        assert_eq!(expected, combine_option_strings(string1_option, string2_option));
+        assert_eq!(expected, string1_option.combine(string2_option));
     }
 
     #[test]
@@ -437,7 +437,6 @@ mod tests {
         let string1_option: Option<String> = None;
         let string2_option = Some(String::from("Second string"));
         let expected = Some(String::from("Second string"));
-        assert_eq!(expected, combine_option_strings(string1_option, string2_option));
+        assert_eq!(expected, string1_option.combine(string2_option));
     }
 }
-//TODO: borrow values instead of consuming them
