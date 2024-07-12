@@ -249,9 +249,9 @@ impl Config {
     }
 }
 
-pub fn json_to_sbom(filepath: String) -> Result<Sbom> {
+pub fn json_to_sbom(filepath: &String) -> Result<Sbom> {
    
-    let json = fs::read_to_string(filepath).unwrap();
+    let json = fs::read_to_string(&filepath).unwrap();
 
     let sbom: Sbom = serde_json::from_str(&json)?;
     eprintln!("Sbom name: {}", &sbom.name);
@@ -312,8 +312,8 @@ pub fn merge_all(config: Config) -> Result<()>{
 
     eprintln!("Merging {} and {}.", &path1, &path2);
 
-    let sbom1 = json_to_sbom(path1).unwrap();
-    let sbom2 = json_to_sbom(path2).unwrap();
+    let sbom1 = json_to_sbom(&path1).unwrap();
+    let sbom2 = json_to_sbom(&path2).unwrap();
 
     let sbom_final = merge(sbom1, sbom2);
 
