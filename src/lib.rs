@@ -261,7 +261,7 @@ pub fn json_to_sbom(filepath: &String) -> Result<Sbom> {
     Ok(sbom)
 }
 
-pub fn sbom_to_string(sbom: Sbom) -> Result<String> {
+pub fn sbom_to_string(sbom: &Sbom) -> Result<String> {
 
     let merged = serde_json::to_string_pretty(&sbom)?;
 
@@ -317,7 +317,7 @@ pub fn merge_all(config: Config) -> Result<()>{
 
     let sbom_final = merge(sbom1, sbom2);
 
-    let merged = sbom_to_string(sbom_final?).unwrap();
+    let merged = sbom_to_string(&sbom_final?).unwrap();
 
     println!("{}", merged);
 
