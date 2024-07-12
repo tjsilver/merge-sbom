@@ -14,7 +14,7 @@ fn main() {
 
     eprintln!("Merging {} and {}", config.path1, config.path2);
 
-    if let Err(e) = merge_sbom::merge_all(config) {
+    if let Err(e) = merge_sbom::merge_all(&config) {
         eprintln!("Application error: {e}");
         process::exit(1);
     }

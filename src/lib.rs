@@ -308,10 +308,10 @@ fn merge(sbom1: &Sbom, sbom2:&Sbom) -> Result<Sbom> {
     Ok(merged)    
 }
 
-pub fn merge_all(config: Config) -> Result<()>{
+pub fn merge_all(config: &Config) -> Result<()>{
 
-    let path1 = config.path1;
-    let path2 = config.path2;
+    let path1 = &config.path1;
+    let path2 = &config.path2;
 
     eprintln!("Merging {} and {}.", &path1, &path2);
 
