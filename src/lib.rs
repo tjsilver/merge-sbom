@@ -268,7 +268,7 @@ pub fn sbom_to_string(sbom: &Sbom) -> Result<String> {
     Ok(merged)
 }
 
-fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
+fn merge(sbom1: &Sbom, sbom2:&Sbom) -> Result<Sbom> {
     const VERSION: &str = "SPDX-2.3";
     if sbom1.spdx_version != VERSION || sbom2.spdx_version != VERSION {
         bail!("Version mismatch: SPDX version in both files must be {}", VERSION);
@@ -276,31 +276,34 @@ fn merge(sbom1: Sbom, sbom2:Sbom) -> Result<Sbom> {
         eprintln!("SPDX version is {}", VERSION);
     }
 
-    let mut all_creators = sbom1.creation_info.creators.combine(sbom2.creation_info.creators);
+    let s1 = sbom1.clone();
+    let s2 = sbom2.clone();
+
+    let mut all_creators = s1.creation_info.creators.combine(s2.creation_info.creators);
     all_creators.insert(String::from("Tool: Guardian.com-Merge-SBOM"));
 
     
     let merged: Sbom = Sbom { 
-        spdxid: sbom1.spdxid, 
-        spdx_version: sbom1.spdx_version, 
+        spdxid: s1.spdxid, 
+        spdx_version: s1.spdx_version, 
         creation_info: CreationInfo {
-            license_list_version: sbom1.creation_info.license_list_version.combine(sbom2.creation_info.license_list_version),
+            license_list_version: s1.creation_info.license_list_version.combine(s2.creation_info.license_list_version),
             created: Utc::now(),
             creators: all_creators, 
-            comment: sbom1.creation_info.comment.combine(sbom2.creation_info.comment)
+            comment: s1.creation_info.comment.combine(s2.creation_info.comment)
         }, 
-        name: format!("{} AND {}", sbom1.name, sbom2.name), 
-        data_license: sbom1.data_license.combine(sbom2.data_license), 
-        comment: sbom1.comment.combine(sbom2.comment),
-        external_document_refs: sbom1.external_document_refs.combine(sbom2.external_document_refs),
-        has_extracted_licensing_infos: sbom1.has_extracted_licensing_infos.combine(sbom2.has_extracted_licensing_infos),
-        annotations: sbom1.annotations.combine(sbom2.annotations),
-        document_describes: sbom1.document_describes.combine(sbom2.document_describes),
-        document_namespace: sbom1.document_namespace.combine(sbom2.document_namespace), 
-        packages: sbom1.packages.combine(sbom2.packages),
-        files: sbom1.files.combine(sbom2.files),
-        relationships: sbom1.relationships.combine(sbom2.relationships),
-        snippets: sbom1.snippets.combine(sbom2.snippets), 
+        name: format!("{} AND {}", s1.name, s2.name), 
+        data_license: s1.data_license.combine(sbom2.clone().data_license), 
+        comment: s1.comment.combine(s2.comment),
+        external_document_refs: s1.external_document_refs.combine(s2.external_document_refs),
+        has_extracted_licensing_infos: s1.has_extracted_licensing_infos.combine(s2.has_extracted_licensing_infos),
+        annotations: s1.annotations.combine(s2.annotations),
+        document_describes: s1.document_describes.combine(s2.document_describes),
+        document_namespace: s1.document_namespace.combine(s2.document_namespace), 
+        packages: s1.packages.combine(s2.packages),
+        files: s1.files.combine(s2.files),
+        relationships: s1.relationships.combine(s2.relationships),
+        snippets: s1.snippets.combine(s2.snippets), 
     };
     Ok(merged)    
 }
@@ -315,7 +318,7 @@ pub fn merge_all(config: Config) -> Result<()>{
     let sbom1 = json_to_sbom(&path1).unwrap();
     let sbom2 = json_to_sbom(&path2).unwrap();
 
-    let sbom_final = merge(sbom1, sbom2);
+    let sbom_final = merge(&sbom1, &sbom2);
 
     let merged = sbom_to_string(&sbom_final?).unwrap();
 
