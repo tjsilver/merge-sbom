@@ -1,23 +1,14 @@
-use std::env;
 use std::process;
+use clap::Parser;
+use merge_sbom::Paths;
 
-use merge_sbom::Config;
 
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
+fn main(){
+    let args: Paths = Paths::parse();
 
-    let config = Config::build(&args).unwrap_or_else(|err|{
-        eprintln!("Problem parsing arguments: {err}");
-        process::exit(1);
-    });
-
-    eprintln!("Merging {} and {}", config.path1, config.path2);
-
-    if let Err(e) = merge_sbom::merge_all(&config) {
+    if let Err(e) = merge_sbom::merge_all(&args) {
         eprintln!("Application error: {e}");
         process::exit(1);
     }
-
-
 }

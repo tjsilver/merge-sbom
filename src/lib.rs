@@ -1,16 +1,25 @@
 mod combinable;
 
 use chrono::{DateTime, Utc};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
-use std::fs;
+use std::{fs, io};
+use std::io::Write;
+use std::path::PathBuf;
 use anyhow::{bail, Result};
 use combinable::Combinable;
 
-pub struct Config {
-    pub path1: String,
-    pub path2: String,
+/// Merge 2 SBOMs (SPDX 2.3)
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Paths {
+    /// Path of the first SBOM file
+    pub path1: std::path::PathBuf,
+
+    /// Path of the second SBOM file
+    pub path2: std::path::PathBuf
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -235,28 +244,12 @@ pub struct Relationship {
     pub related_spdx_element: String,
 }
 
-
-impl Config {
-    pub fn build(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("Not enough arguments");
-        }
-
-        let path1 = args[1].clone();
-        let path2 = args[2].clone();
-
-        Ok(Config { path1, path2 })
-    }
-}
-
-pub fn json_to_sbom(filepath: &String) -> Result<Sbom> {
+pub fn json_to_sbom(filepath: &PathBuf) -> Result<Sbom> {
    
+    // TODO: use BufReader instead of read_to_string?
     let json = fs::read_to_string(&filepath).unwrap();
 
     let sbom: Sbom = serde_json::from_str(&json)?;
-    eprintln!("Sbom name: {}", &sbom.name);
-    eprintln!("SPDXID: {}", &sbom.spdxid);
-    eprintln!("spdxVersion: {}", &sbom.spdx_version);
     
     Ok(sbom)
 }
@@ -272,8 +265,6 @@ fn merge(sbom1: &Sbom, sbom2:&Sbom) -> Result<Sbom> {
     const VERSION: &str = "SPDX-2.3";
     if sbom1.spdx_version != VERSION || sbom2.spdx_version != VERSION {
         bail!("Version mismatch: SPDX version in both files must be {}", VERSION);
-    } else {
-        eprintln!("SPDX version is {}", VERSION);
     }
 
     let s1 = sbom1.clone();
@@ -308,12 +299,10 @@ fn merge(sbom1: &Sbom, sbom2:&Sbom) -> Result<Sbom> {
     Ok(merged)    
 }
 
-pub fn merge_all(config: &Config) -> Result<()>{
+pub fn merge_all(file_paths: &Paths) -> Result<()>{
 
-    let path1 = &config.path1;
-    let path2 = &config.path2;
-
-    eprintln!("Merging {} and {}.", &path1, &path2);
+    let path1 = &file_paths.path1;
+    let path2 = &file_paths.path2;
 
     let sbom1 = json_to_sbom(&path1).unwrap();
     let sbom2 = json_to_sbom(&path2).unwrap();
@@ -322,7 +311,9 @@ pub fn merge_all(config: &Config) -> Result<()>{
 
     let merged = sbom_to_string(&sbom_final?).unwrap();
 
-    println!("{}", merged);
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+    writeln!(handle, "{}", merged)?;
 
     Ok(())
 }
